@@ -6,8 +6,26 @@ secrets and configuration manager.
 | Formula | What it installs |
 | --- | --- |
 | `varlatch` | The `varlatch` CLI, run with Homebrew's Node.js |
+| `varlatch-menubar` | [Varlatch for macOS](https://github.com/varlatch/macos-menubar), your sessions in the menu bar, with the CLI |
 
 ## Install
+
+The menu bar app, with the CLI and Node.js:
+
+```bash
+brew install varlatch/tap/varlatch-menubar
+mkdir -p ~/Applications
+ln -sfn "$(brew --prefix)/opt/varlatch-menubar/Varlatch.app" ~/Applications/Varlatch.app
+open ~/Applications/Varlatch.app
+```
+
+Homebrew builds the app from source on your Mac with Apple's Command Line
+Tools (Xcode is not needed), so it opens without a Gatekeeper prompt.
+Homebrew cannot write to `/Applications`; the link in `~/Applications`
+makes the app show in Finder, Spotlight, and Launchpad, and follows
+upgrades. Needs macOS 13 or newer.
+
+Only the CLI:
 
 ```bash
 brew install varlatch/tap/varlatch
@@ -27,16 +45,21 @@ varlatch login --server https://varlatch.example.com
 
 ```bash
 brew update
-brew upgrade varlatch
+brew upgrade varlatch varlatch-menubar
 ```
+
+Quit the app and open it again after an upgrade.
 
 Homebrew owns the installed files, so a Homebrew CLI refuses
 `varlatch self-update` and points you to `brew upgrade varlatch` instead.
 
 ## Uninstall
 
+Turn off **Open at login** in the app's Settings first, quit it, then:
+
 ```bash
-brew uninstall varlatch
+brew uninstall varlatch-menubar varlatch
+rm ~/Applications/Varlatch.app
 brew untap varlatch/tap
 ```
 
@@ -86,6 +109,27 @@ needs a bump of `Formula/varlatch.rb`. For version `X.Y.Z`:
 
 5. Open a pull request. CI runs the same checks on a macOS runner; merge
    once it passes.
+
+### A new release of the menu bar app
+
+Once CI has passed on the commit and `vX.Y.Z` is tagged and released in
+[varlatch/macos-menubar](https://github.com/varlatch/macos-menubar/releases):
+
+1. Hash the tag's source tarball:
+
+   ```bash
+   curl -fsSL https://github.com/varlatch/macos-menubar/archive/refs/tags/vX.Y.Z.tar.gz | shasum -a 256
+   ```
+
+2. On a branch, set `url` in `Formula/varlatch-menubar.rb` to the new tag
+   and `sha256` to that hash.
+
+3. Check it as above (`brew style`, `brew audit --strict --online`,
+   `brew reinstall --build-from-source varlatch/tap/varlatch-menubar`,
+   `brew test`), open a pull request, and merge once CI passes.
+
+`brew install --HEAD varlatch/tap/varlatch-menubar` builds the latest
+`main` instead, for trying unreleased changes.
 
 ### Working on a checkout
 
