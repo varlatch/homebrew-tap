@@ -1,8 +1,8 @@
 class VarlatchMenubar < Formula
   desc "Varlatch sessions in the macOS menu bar"
   homepage "https://varlatch.com"
-  url "https://github.com/varlatch/macos-menubar/archive/refs/tags/v0.1.0.tar.gz"
-  sha256 "bbb641573394d2dad7aba499c29f1b394ca2d720fab05c966f0be94980956cb4"
+  url "https://github.com/varlatch/macos-menubar/archive/refs/tags/v0.2.0.tar.gz"
+  sha256 "16cbf3fc61a18cd835cfb2450772f12420506cf272a7cc4402313d824fedac50"
   license "Apache-2.0"
   head "https://github.com/varlatch/macos-menubar.git", branch: "main"
 
@@ -25,8 +25,9 @@ class VarlatchMenubar < Formula
         mkdir -p ~/Applications
         ln -sfn #{opt_prefix}/Varlatch.app ~/Applications/Varlatch.app
         open ~/Applications/Varlatch.app
-      The link follows `brew upgrade`. After an upgrade, quit Varlatch and
-      open it again.
+      The link follows `brew upgrade`, and Varlatch offers to restart into
+      the new version after one. Varlatch 0.1.0 does not: if it is still
+      running, quit it and open it again.
 
       Before uninstalling, turn off "Open at login" in Varlatch's Settings.
     EOS

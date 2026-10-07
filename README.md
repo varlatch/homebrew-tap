@@ -55,7 +55,8 @@ brew update
 brew upgrade varlatch varlatch-menubar
 ```
 
-Quit the app and open it again after an upgrade.
+The app (0.2.0 and newer) notices the upgrade and offers to restart into
+the new version. With 0.1.0 still running, quit it and open it again once.
 
 Homebrew owns the installed files, so a Homebrew CLI refuses
 `varlatch self-update` and points you to `brew upgrade varlatch` instead.
