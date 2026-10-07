@@ -25,6 +25,8 @@ jobs:
           rm -rf "$tap"
           mkdir -p "$(dirname "$tap")"
           ln -s "$GITHUB_WORKSPACE" "$tap"
+          # Homebrew loads formulae from other taps only once trusted.
+          brew trust varlatch/tap
           brew --version
       - name: brew style
         run: brew style varlatch/tap
