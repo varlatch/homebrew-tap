@@ -13,11 +13,18 @@ secrets and configuration manager.
 The menu bar app, with the CLI and Node.js:
 
 ```bash
-brew install varlatch/tap/varlatch-menubar
+brew install varlatch/tap/varlatch varlatch/tap/varlatch-menubar
 mkdir -p ~/Applications
 ln -sfn "$(brew --prefix)/opt/varlatch-menubar/Varlatch.app" ~/Applications/Varlatch.app
 open ~/Applications/Varlatch.app
 ```
+
+Homebrew loads formulae from a tap like this one only once you trust them,
+and installing a formula by its full name trusts it. The app needs the CLI,
+so name both; `brew install varlatch/tap/varlatch-menubar` alone stops at
+"Refusing to load formula varlatch/tap/varlatch from untrusted tap". To
+trust every formula in this tap instead, run `brew trust varlatch/tap`
+first.
 
 Homebrew builds the app from source on your Mac with Apple's Command Line
 Tools (Xcode is not needed), so it opens without a Gatekeeper prompt.
@@ -139,6 +146,7 @@ link to your checkout in its place:
 ```bash
 tap="$(brew --repository)/Library/Taps/varlatch/homebrew-tap"
 rm -rf "$tap" && mkdir -p "$(dirname "$tap")" && ln -s "$PWD" "$tap"
+brew trust varlatch/tap
 ```
 
 To go back to the published tap, remove the link (`rm "$tap"`) and run
