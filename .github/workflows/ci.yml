@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+      HOMEBREW_NO_ENV_HINTS: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Tap this checkout
+        run: |
+          brew update
+          tap="$(brew --repository)/Library/Taps/varlatch/homebrew-tap"
+          rm -rf "$tap"
+          mkdir -p "$(dirname "$tap")"
+          ln -s "$GITHUB_WORKSPACE" "$tap"
+          brew --version
+      - name: brew style
+        run: brew style varlatch/tap
+      - name: brew audit
+        run: |
+          for f in Formula/*.rb; do
+            brew audit --strict --online "varlatch/tap/$(basename "$f" .rb)"
+          done
+      - name: Install from source
+        run: |
+          for f in Formula/*.rb; do
+            brew install --build-from-source "varlatch/tap/$(basename "$f" .rb)"
+          done
+      - name: brew test
+        run: |
+          for f in Formula/*.rb; do
+            brew test "varlatch/tap/$(basename "$f" .rb)"
+          done
