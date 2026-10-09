@@ -1,8 +1,8 @@
 class Varlatch < Formula
   desc "Self-host-first secrets and configuration manager CLI"
   homepage "https://varlatch.com"
-  url "https://github.com/varlatch/varlatch/releases/download/v0.15.1/varlatch-cli-0.15.1.cjs"
-  sha256 "5901481f5a1060c7e1941e5fbc1ff0fe07c09718e1d98de42a2d7d5642357e5a"
+  url "https://github.com/varlatch/varlatch/releases/download/v0.16.0/varlatch-cli-0.16.0.cjs"
+  sha256 "8e3aad69ea65de7e69c16c5fb081bac835352bc490240cc743020b707f9cbb94"
   license "Apache-2.0"
 
   livecheck do
