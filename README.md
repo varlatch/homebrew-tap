@@ -79,8 +79,20 @@ server, or delete that directory to forget them locally.
 
 ### A new Varlatch release
 
-Each release of [varlatch/varlatch](https://github.com/varlatch/varlatch/releases)
-needs a bump of `Formula/varlatch.rb`. For version `X.Y.Z`:
+[`bump-varlatch.yml`](.github/workflows/bump-varlatch.yml) looks for a new
+[varlatch/varlatch](https://github.com/varlatch/varlatch/releases) release every
+six hours. It checks the release's signature and hash, opens a pull request
+that bumps `Formula/varlatch.rb`, and merges it once CI passes.
+
+- **To skip a release,** close its pull request. It is not opened again, and
+  the next release gets its own.
+- **When CI fails,** the pull request stays open and the scheduled run fails
+  until a newer release replaces it or someone deals with it.
+- **After 60 days without a commit,** GitHub turns off scheduled workflows in a
+  public repository. Turn it back on in the Actions tab; releases normally
+  keep this from happening.
+
+To bump by hand, or to redo what the workflow does, for version `X.Y.Z`:
 
 1. Download the release's CLI, checksums, and signature into an empty
    directory:

@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Started by bump-varlatch.yml: its pull requests trigger no pull_request run.
+  workflow_dispatch:
 
 permissions:
   contents: read
