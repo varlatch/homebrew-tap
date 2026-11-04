@@ -1,0 +1,152 @@
+name: Bump varlatch
+
+# Opens the Formula/varlatch.rb bump for each new varlatch/varlatch release and
+# merges it once CI passes. The tap polls instead of the release workflow
+# pushing here, so no credential for this repository sits in that workflow.
+#
+# Nothing is proposed unless SHA256SUMS carries the release workflow's Sigstore
+# signature for that exact tag and the CLI matches it. To skip a bad release,
+# close its pull request: a closed one is never opened again.
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bump-varlatch
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # push the bump branch
+      pull-requests: write # open and merge the pull request
+      actions: write # start CI, see below
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASES: varlatch/varlatch
+      FORMULA: Formula/varlatch.rb
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Compare the newest release with the formula
+        id: check
+        run: |
+          latest=$(gh release view --repo "$RELEASES" --json tagName --jq .tagName)
+          latest=${latest#v}
+          current=$(sed -nE 's|^ *url ".*/download/v([0-9.]+)/varlatch-cli-.*|\1|p' "$FORMULA")
+          for v in "$latest" "$current"; do
+            if ! [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Not a release version: '$v'"
+              exit 1
+            fi
+          done
+          newest=$(printf '%s\n%s\n' "$latest" "$current" | sort -V | tail -n 1)
+          if [ "$latest" = "$current" ] || [ "$newest" != "$latest" ]; then
+            echo "Nothing to do: the formula is at $current, the newest release is $latest."
+            exit 0
+          fi
+
+          branch="chore/varlatch-$latest"
+          state=$(gh pr list --head "$branch" --state all --json state --jq '.[0].state // ""')
+          case "$state" in
+            OPEN)
+              # A scheduled run's failure notifies the maintainers; a failed
+              # check on the pull request alone notifies nobody.
+              failed=$(gh pr list --head "$branch" --state open --json statusCheckRollup \
+                --jq '[.[0].statusCheckRollup[]? | select(.conclusion == "FAILURE" or .conclusion == "TIMED_OUT" or .conclusion == "CANCELLED")] | length')
+              if [ "$failed" != 0 ]; then
+                echo "::error::CI failed on the pull request for varlatch $latest, so it is not merged."
+                exit 1
+              fi
+              echo "The pull request for varlatch $latest is waiting for CI."
+              exit 0
+              ;;
+            CLOSED)
+              echo "Skipping varlatch $latest: its pull request was closed."
+              exit 0
+              ;;
+          esac
+          {
+            echo "bump=true"
+            echo "version=$latest"
+            echo "branch=$branch"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3.9.1
+        if: steps.check.outputs.bump == 'true'
+
+      - name: Verify the release
+        id: verify
+        if: steps.check.outputs.bump == 'true'
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          dir=$(mktemp -d)
+          cli="varlatch-cli-$VERSION.cjs"
+          gh release download "v$VERSION" --repo "$RELEASES" --dir "$dir" \
+            --pattern "$cli" --pattern SHA256SUMS --pattern SHA256SUMS.sigstore.json
+          cosign verify-blob "$dir/SHA256SUMS" --bundle "$dir/SHA256SUMS.sigstore.json" \
+            --certificate-identity "https://github.com/$RELEASES/.github/workflows/release.yml@refs/tags/v$VERSION" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
+          signed=$(awk -v f="$cli" '$2 == f { print $1 }' "$dir/SHA256SUMS")
+          actual=$(sha256sum "$dir/$cli" | cut -d' ' -f1)
+          if ! [[ "$signed" =~ ^[0-9a-f]{64}$ ]] || [ "$signed" != "$actual" ]; then
+            echo "::error::$cli does not match the signed SHA256SUMS."
+            exit 1
+          fi
+          echo "sha256=$actual" >> "$GITHUB_OUTPUT"
+
+      - name: Open the pull request
+        if: steps.check.outputs.bump == 'true'
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
+          BRANCH: ${{ steps.check.outputs.branch }}
+          SHA256: ${{ steps.verify.outputs.sha256 }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          sed -i -E \
+            -e "s|/download/v[0-9.]+/varlatch-cli-[0-9.]+\.cjs|/download/v$VERSION/varlatch-cli-$VERSION.cjs|" \
+            -e "s|^( *sha256 )\"[0-9a-f]{64}\"|\1\"$SHA256\"|" \
+            "$FORMULA"
+          if [ "$(git diff --numstat -- "$FORMULA" | cut -f1,2)" != "$(printf '2\t2')" ]; then
+            echo "::error::Expected to change exactly the url and sha256 lines."
+            git diff -- "$FORMULA"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git commit -am "varlatch $VERSION"
+          git push --force origin "$BRANCH"
+
+          # An older bump still open is one whose CI failed: this one replaces it.
+          gh pr list --state open --author app/github-actions --json number,headRefName \
+            --jq '.[] | select(.headRefName | startswith("chore/varlatch-")) | .number' |
+            while read -r old; do
+              gh pr close "$old" --delete-branch --comment "Replaced by varlatch $VERSION."
+            done
+
+          url=$(gh pr create --base "$GITHUB_REF_NAME" --head "$BRANCH" --title "varlatch $VERSION" --body "$(cat <<BODY
+          Update the Varlatch CLI formula to [v$VERSION](https://github.com/$RELEASES/releases/tag/v$VERSION).
+
+          [This run]($RUN_URL) checked the Sigstore signature on \`SHA256SUMS\` for the release workflow at that tag, and \`varlatch-cli-$VERSION.cjs\` against \`SHA256SUMS\`.
+
+          This merges by itself once CI passes. Close it to skip this release.
+          BODY
+          )")
+
+          # A pull request opened with GITHUB_TOKEN starts no pull_request
+          # workflows, but workflow_dispatch does run: the check lands on the
+          # same commit, where the ruleset on main requires it before merging.
+          gh workflow run ci.yml --ref "$BRANCH"
+          gh pr merge "$url" --auto --squash
