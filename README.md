@@ -5,12 +5,12 @@ secrets and configuration manager.
 
 | Formula | What it installs |
 | --- | --- |
-| `varlatch` | The `varlatch` CLI, run with Homebrew's Node.js |
+| `varlatch` | The `varlatch` CLI, one native binary for your Mac or Linux machine |
 | `varlatch-menubar` | [Varlatch for macOS](https://github.com/varlatch/macos-menubar), your sessions in the menu bar, with the CLI |
 
 ## Install
 
-The menu bar app, with the CLI and Node.js:
+The menu bar app, with the CLI:
 
 ```bash
 brew install varlatch/tap/varlatch varlatch/tap/varlatch-menubar
@@ -39,8 +39,8 @@ brew install varlatch/tap/varlatch
 varlatch --version
 ```
 
-This installs Node.js from Homebrew when you do not have it yet. The CLI
-always runs with Homebrew's `node`, whatever is first on your `PATH`.
+The CLI is the release's native binary for your platform (macOS or Linux,
+Apple Silicon or Intel); it needs no Node.js.
 
 Then sign in to your server:
 
@@ -94,29 +94,30 @@ that bumps `Formula/varlatch.rb`, and merges it once CI passes.
 
 To bump by hand, or to redo what the workflow does, for version `X.Y.Z`:
 
-1. Download the release's CLI, checksums, and signature into an empty
-   directory:
+1. Download the release's CLI binaries for macOS and Linux, its checksums,
+   and its signature into an empty directory:
 
    ```bash
    gh release download vX.Y.Z --repo varlatch/varlatch \
-     --pattern 'varlatch-cli-X.Y.Z.cjs' --pattern 'SHA256SUMS' \
-     --pattern 'SHA256SUMS.sigstore.json'
+     --pattern 'varlatch-X.Y.Z-darwin-*' --pattern 'varlatch-X.Y.Z-linux-*' \
+     --pattern 'SHA256SUMS' --pattern 'SHA256SUMS.sigstore.json'
    ```
 
-2. Check the signature on `SHA256SUMS` (needs `cosign`), then the file
+2. Check the signature on `SHA256SUMS` (needs `cosign`), then the files
    against it:
 
    ```bash
    cosign verify-blob SHA256SUMS --bundle SHA256SUMS.sigstore.json \
      --certificate-identity "https://github.com/varlatch/varlatch/.github/workflows/release.yml@refs/tags/vX.Y.Z" \
      --certificate-oidc-issuer https://token.actions.githubusercontent.com
-   grep ' varlatch-cli-X.Y.Z.cjs$' SHA256SUMS
-   shasum -a 256 varlatch-cli-X.Y.Z.cjs
+   grep -E ' varlatch-X\.Y\.Z-(darwin|linux)-(amd64|arm64)$' SHA256SUMS
+   shasum -a 256 varlatch-X.Y.Z-darwin-* varlatch-X.Y.Z-linux-*
    ```
 
-   The two hashes must match.
+   Each binary's hash must match its line.
 
-3. On a branch, set `url` to the new version and `sha256` to that hash.
+3. On a branch, set each of the four `url` lines to the new version, and
+   the `sha256` after each to that binary's hash.
 
 4. Check it locally, with this checkout as the tap:
 

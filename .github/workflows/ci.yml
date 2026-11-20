@@ -20,6 +20,23 @@ jobs:
       HOMEBREW_NO_ENV_HINTS: "1"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # Homebrew reads a prerelease's file name (varlatch-0.50.0-rc.1-...)
+      # as version 0.50.0-rc, so a formula pointing at one cannot install.
+      - name: varlatch points at a final release
+        run: |
+          versions="$(grep -oE 'download/v[^/"]+' Formula/varlatch.rb | sed 's|^download/v||' | sort -u)"
+          if [ -z "$versions" ]; then
+            echo "::error file=Formula/varlatch.rb::no download/v<version> URL found"
+            exit 1
+          fi
+          bad=0
+          for v in $versions; do
+            if ! printf '%s\n' "$v" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "::error file=Formula/varlatch.rb::v$v points at a prerelease: re-point at a final release before merging"
+              bad=1
+            fi
+          done
+          exit "$bad"
       - name: Tap this checkout
         run: |
           brew update

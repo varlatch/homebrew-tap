@@ -5,7 +5,8 @@ name: Bump varlatch
 # pushing here, so no credential for this repository sits in that workflow.
 #
 # Nothing is proposed unless SHA256SUMS carries the release workflow's Sigstore
-# signature for that exact tag and the CLI matches it. To skip a bad release,
+# signature for that exact tag and every native binary the formula installs
+# (macOS and Linux, Intel and ARM) matches it. To skip a bad release,
 # close its pull request: a closed one is never opened again.
 on:
   schedule:
@@ -42,7 +43,8 @@ jobs:
         run: |
           latest=$(gh release view --repo "$RELEASES" --json tagName --jq .tagName)
           latest=${latest#v}
-          current=$(sed -nE 's|^ *url ".*/download/v([0-9.]+)/varlatch-cli-.*|\1|p' "$FORMULA")
+          # Every url line names the same release.
+          current=$(sed -nE 's|^ *url ".*/download/v([^/]+)/varlatch-.*|\1|p' "$FORMULA" | sort -u)
           for v in "$latest" "$current"; do
             if ! [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
               echo "::error::Not a release version: '$v'"
@@ -91,34 +93,55 @@ jobs:
           VERSION: ${{ steps.check.outputs.version }}
         run: |
           dir=$(mktemp -d)
-          cli="varlatch-cli-$VERSION.cjs"
           gh release download "v$VERSION" --repo "$RELEASES" --dir "$dir" \
-            --pattern "$cli" --pattern SHA256SUMS --pattern SHA256SUMS.sigstore.json
+            --pattern SHA256SUMS --pattern SHA256SUMS.sigstore.json \
+            --pattern "varlatch-$VERSION-darwin-*" --pattern "varlatch-$VERSION-linux-*"
           cosign verify-blob "$dir/SHA256SUMS" --bundle "$dir/SHA256SUMS.sigstore.json" \
             --certificate-identity "https://github.com/$RELEASES/.github/workflows/release.yml@refs/tags/v$VERSION" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com
-          signed=$(awk -v f="$cli" '$2 == f { print $1 }' "$dir/SHA256SUMS")
-          actual=$(sha256sum "$dir/$cli" | cut -d' ' -f1)
-          if ! [[ "$signed" =~ ^[0-9a-f]{64}$ ]] || [ "$signed" != "$actual" ]; then
-            echo "::error::$cli does not match the signed SHA256SUMS."
-            exit 1
-          fi
-          echo "sha256=$actual" >> "$GITHUB_OUTPUT"
+          for platform in darwin-arm64 darwin-amd64 linux-arm64 linux-amd64; do
+            cli="varlatch-$VERSION-$platform"
+            signed=$(awk -v f="$cli" '$2 == f { print $1 }' "$dir/SHA256SUMS")
+            actual=$(sha256sum "$dir/$cli" | cut -d' ' -f1)
+            if ! [[ "$signed" =~ ^[0-9a-f]{64}$ ]] || [ "$signed" != "$actual" ]; then
+              echo "::error::$cli does not match the signed SHA256SUMS."
+              exit 1
+            fi
+          done
+          echo "sums=$dir/SHA256SUMS" >> "$GITHUB_OUTPUT"
 
       - name: Open the pull request
         if: steps.check.outputs.bump == 'true'
         env:
           VERSION: ${{ steps.check.outputs.version }}
           BRANCH: ${{ steps.check.outputs.branch }}
-          SHA256: ${{ steps.verify.outputs.sha256 }}
+          SUMS: ${{ steps.verify.outputs.sums }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          sed -i -E \
-            -e "s|/download/v[0-9.]+/varlatch-cli-[0-9.]+\.cjs|/download/v$VERSION/varlatch-cli-$VERSION.cjs|" \
-            -e "s|^( *sha256 )\"[0-9a-f]{64}\"|\1\"$SHA256\"|" \
-            "$FORMULA"
-          if [ "$(git diff --numstat -- "$FORMULA" | cut -f1,2)" != "$(printf '2\t2')" ]; then
-            echo "::error::Expected to change exactly the url and sha256 lines."
+          # Each url line to this release's binary for its platform, and the
+          # sha256 line after it to that binary's signed checksum.
+          python3 - "$FORMULA" "$VERSION" "$SUMS" <<'PY'
+          import re, sys
+          formula, version, sums = sys.argv[1:]
+          signed = {}
+          for line in open(sums):
+              parts = line.split()
+              if len(parts) == 2:
+                  signed[parts[1].lstrip("*")] = parts[0]
+          out, asset = [], None
+          for line in open(formula):
+              m = re.match(r'(\s*url ")(https://github\.com/varlatch/varlatch/releases/download/)v[^/]+/varlatch-[^/"]+-(darwin|linux)-(amd64|arm64)(")', line)
+              if m:
+                  asset = f"varlatch-{version}-{m.group(3)}-{m.group(4)}"
+                  line = f'{m.group(1)}{m.group(2)}v{version}/{asset}{m.group(5)}\n'
+              elif asset and re.match(r'\s*sha256 "[0-9a-f]{64}"', line):
+                  line = re.sub(r'"[0-9a-f]{64}"', f'"{signed[asset]}"', line)
+                  asset = None
+              out.append(line)
+          open(formula, "w").write("".join(out))
+          PY
+          if [ "$(git diff --numstat -- "$FORMULA" | cut -f1,2)" != "$(printf '8\t8')" ]; then
+            echo "::error::Expected to change exactly the four url and four sha256 lines."
             git diff -- "$FORMULA"
             exit 1
           fi
@@ -139,7 +162,7 @@ jobs:
           url=$(gh pr create --base "$GITHUB_REF_NAME" --head "$BRANCH" --title "varlatch $VERSION" --body "$(cat <<BODY
           Update the Varlatch CLI formula to [v$VERSION](https://github.com/$RELEASES/releases/tag/v$VERSION).
 
-          [This run]($RUN_URL) checked the Sigstore signature on \`SHA256SUMS\` for the release workflow at that tag, and \`varlatch-cli-$VERSION.cjs\` against \`SHA256SUMS\`.
+          [This run]($RUN_URL) checked the Sigstore signature on \`SHA256SUMS\` for the release workflow at that tag, and each \`varlatch-$VERSION-<os>-<arch>\` binary the formula installs against \`SHA256SUMS\`.
 
           This merges by itself once CI passes. Close it to skip this release.
           BODY

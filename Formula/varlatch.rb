@@ -1,29 +1,54 @@
 class Varlatch < Formula
   desc "Self-host-first secrets and configuration manager CLI"
   homepage "https://varlatch.com"
-  url "https://github.com/varlatch/varlatch/releases/download/v0.22.4/varlatch-cli-0.22.4.cjs"
-  sha256 "5c7720c87299e63286a31a685d3766293b41c8f3da0814c8bd6750aa3c1562e7"
   license "Apache-2.0"
+
+  # The Go CLI, one native binary per platform (varlatch/varlatch ADR-0059).
+  # Each sha256 is the file's line in the release's SHA256SUMS, whose
+  # Sigstore signature bump-varlatch.yml checks before it changes them.
+  on_macos do
+    on_arm do
+      url "https://github.com/varlatch/varlatch/releases/download/v0.50.0-rc.1/varlatch-0.50.0-rc.1-darwin-arm64"
+      sha256 "495bd8c998dfbc50386d677a8ef00c207f47a096fedf519495a3760dba693c90"
+    end
+    on_intel do
+      url "https://github.com/varlatch/varlatch/releases/download/v0.50.0-rc.1/varlatch-0.50.0-rc.1-darwin-amd64"
+      sha256 "420d0dd908cbb1265cb6e614cfc62e59167b7166d16b20b1e649c9c5d0d8f9ca"
+    end
+  end
+  on_linux do
+    on_arm do
+      url "https://github.com/varlatch/varlatch/releases/download/v0.50.0-rc.1/varlatch-0.50.0-rc.1-linux-arm64"
+      sha256 "c5cdb65999c3466cee431c5e3a5cdee9a59bcecde1316ac04fdeec808237190f"
+    end
+    on_intel do
+      url "https://github.com/varlatch/varlatch/releases/download/v0.50.0-rc.1/varlatch-0.50.0-rc.1-linux-amd64"
+      sha256 "c8e02b06f7330b9cef071dfd0fcb519c18f760bc40276ef1603b404f206f0f99"
+    end
+  end
 
   livecheck do
     url :stable
     strategy :github_latest
   end
 
-  depends_on "node"
-
   def install
-    libexec.install "varlatch-cli-#{version}.cjs" => "varlatch.cjs"
-    # Run with Homebrew's node whatever the PATH. Homebrew owns this file, so
-    # `brew upgrade` updates it rather than `varlatch self-update`.
-    (bin/"varlatch").write <<~SH
-      #!/bin/bash
-      if [ "$1" = "self-update" ]; then
-        echo "varlatch: installed with Homebrew; update with: brew upgrade varlatch" >&2
-        exit 1
-      fi
-      exec "#{formula_opt_bin("node")}/node" "#{libexec}/varlatch.cjs" "$@"
-    SH
+    os = OS.mac? ? "darwin" : "linux"
+    arch = Hardware::CPU.arm? ? "arm64" : "amd64"
+    # Homebrew owns this file: `brew upgrade` updates it, and the CLI's
+    # self-update sees it under the Cellar and points there.
+    bin.install "varlatch-#{version}-#{os}-#{arch}" => "varlatch"
+  end
+
+  def caveats
+    <<~EOS
+      varlatch is now one native binary and no longer needs Node.js.
+      If nothing else uses it, `brew autoremove` removes the node an
+      earlier varlatch pulled in.
+
+      `varlatch self-update` refuses for a Homebrew install; upgrade with
+        brew upgrade varlatch
+    EOS
   end
 
   test do
