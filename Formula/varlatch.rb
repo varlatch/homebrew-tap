@@ -40,6 +40,17 @@ class Varlatch < Formula
     bin.install "varlatch-#{version}-#{os}-#{arch}" => "varlatch"
   end
 
+  def caveats
+    <<~EOS
+      varlatch is now one native binary and no longer needs Node.js.
+      If nothing else uses it, `brew autoremove` removes the node an
+      earlier varlatch pulled in.
+
+      `varlatch self-update` refuses for a Homebrew install; upgrade with
+        brew upgrade varlatch
+    EOS
+  end
+
   test do
     assert_match version.to_s, shell_output("#{bin}/varlatch --version")
 
