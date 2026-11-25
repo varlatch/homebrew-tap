@@ -8,22 +8,22 @@ class Varlatch < Formula
   # Sigstore signature bump-varlatch.yml checks before it changes them.
   on_macos do
     on_arm do
-      url "https://github.com/varlatch/varlatch/releases/download/v0.50.0-rc.1/varlatch-0.50.0-rc.1-darwin-arm64"
-      sha256 "495bd8c998dfbc50386d677a8ef00c207f47a096fedf519495a3760dba693c90"
+      url "https://github.com/varlatch/varlatch/releases/download/v0.50.0/varlatch-0.50.0-darwin-arm64"
+      sha256 "27caebb548eb1c1b8ec3fc2c255c71dc5ce775dcca58a27efe8e50f13b5ca6af"
     end
     on_intel do
-      url "https://github.com/varlatch/varlatch/releases/download/v0.50.0-rc.1/varlatch-0.50.0-rc.1-darwin-amd64"
-      sha256 "420d0dd908cbb1265cb6e614cfc62e59167b7166d16b20b1e649c9c5d0d8f9ca"
+      url "https://github.com/varlatch/varlatch/releases/download/v0.50.0/varlatch-0.50.0-darwin-amd64"
+      sha256 "b1fcbd5968da1dc9b631ce1417217ea35a7c0ea350a1e95b5cbb5f65325a8e42"
     end
   end
   on_linux do
     on_arm do
-      url "https://github.com/varlatch/varlatch/releases/download/v0.50.0-rc.1/varlatch-0.50.0-rc.1-linux-arm64"
-      sha256 "c5cdb65999c3466cee431c5e3a5cdee9a59bcecde1316ac04fdeec808237190f"
+      url "https://github.com/varlatch/varlatch/releases/download/v0.50.0/varlatch-0.50.0-linux-arm64"
+      sha256 "9b452c1dc9a2bd6f8dd8acbdec33d693146cd3758b4d8ed3a897ad1ad169d144"
     end
     on_intel do
-      url "https://github.com/varlatch/varlatch/releases/download/v0.50.0-rc.1/varlatch-0.50.0-rc.1-linux-amd64"
-      sha256 "c8e02b06f7330b9cef071dfd0fcb519c18f760bc40276ef1603b404f206f0f99"
+      url "https://github.com/varlatch/varlatch/releases/download/v0.50.0/varlatch-0.50.0-linux-amd64"
+      sha256 "8c6b311df899feab561f8ff5fc3972b81cf6fd7e2995f845d1cd662666f65bca"
     end
   end
 
