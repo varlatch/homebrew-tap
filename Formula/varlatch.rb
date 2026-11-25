@@ -3,6 +3,11 @@ class Varlatch < Formula
   homepage "https://varlatch.com"
   license "Apache-2.0"
 
+  livecheck do
+    url :stable
+    strategy :github_latest
+  end
+
   # The Go CLI, one native binary per platform (varlatch/varlatch ADR-0059).
   # Each sha256 is the file's line in the release's SHA256SUMS, whose
   # Sigstore signature bump-varlatch.yml checks before it changes them.
@@ -25,11 +30,6 @@ class Varlatch < Formula
       url "https://github.com/varlatch/varlatch/releases/download/v0.50.0/varlatch-0.50.0-linux-amd64"
       sha256 "8c6b311df899feab561f8ff5fc3972b81cf6fd7e2995f845d1cd662666f65bca"
     end
-  end
-
-  livecheck do
-    url :stable
-    strategy :github_latest
   end
 
   def install
