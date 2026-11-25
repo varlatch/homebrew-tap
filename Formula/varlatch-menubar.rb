@@ -1,8 +1,8 @@
 class VarlatchMenubar < Formula
   desc "Varlatch sessions in the macOS menu bar"
   homepage "https://varlatch.com"
-  url "https://github.com/varlatch/macos-menubar/archive/refs/tags/v0.2.1.tar.gz"
-  sha256 "5a2dba8768750cb3653229ab836d0289d22c2e74d6f632dda2848ed3a6b6cde3"
+  url "https://github.com/varlatch/macos-menubar/archive/refs/tags/v0.3.0.tar.gz"
+  sha256 "0052cdefd3c99c9dd440aa4928ca393c09bc372f832b42abee8e397fb8db7c50"
   license "Apache-2.0"
   head "https://github.com/varlatch/macos-menubar.git", branch: "main"
 
